@@ -323,6 +323,7 @@
             me.controllerURL = window.location.href.split('?')[0];
             me.resetLabel = me.$activeFilterCont.attr('data-reset-label');
             me.propertyFieldNames = [];
+            me.isBrowserHistoryButton = false;
             me.activeFilterElements = {};
             me.categoryParams = {};
             me.urlParams = '';
@@ -451,6 +452,8 @@
             this.$listingWrapper.on(this.getEventName('submit'), this.opts.actionFormSelector, $.proxy(this.onActionSubmit, this));
             this.$listingWrapper.on(this.getEventName('click'), this.opts.actionLinkSelector, $.proxy(this.onActionLink, this));
 
+            $(window).on(this.getEventName('popstate'), $.proxy(this.onActionLink, this));
+
             $.publish('plugin/swListingActions/onRegisterEvents', [this]);
         },
 
@@ -573,10 +576,12 @@
             event.preventDefault();
 
             var me = this,
-                $link = $(event.currentTarget),
-                linkParams = $link.attr('href').split('?')[1],
-                linkParamsArray = linkParams.split('&'),
-                paramValue;
+                paramValue,
+                linkParams;
+
+            linkParams = this._parseLinkParams(event.currentTarget);
+
+            var linkParamsArray = linkParams.split('&');
 
             if (me.showInstantFilterResult) {
                 // Update page number in web form
@@ -594,6 +599,31 @@
             );
 
             $.publish('plugin/swListingActions/onActionLink', [this, event]);
+        },
+
+        /**
+         * Parse link params based on the link href or window location
+         *
+         * @param {Object} _target
+         */
+        _parseLinkParams: function(_target) {
+            var me = this,
+                $link = $(_target),
+                linkParams;
+
+            if(!$link.attr('href')) {
+                linkParams = window.location.href;
+                me.isBrowserHistoryButton = true;
+            } else {
+                linkParams = $link.attr('href');
+                me.isBrowserHistoryButton = false;
+            }
+
+            if(linkParams) {
+                linkParams = linkParams.split('?')[1];
+            }
+
+            return linkParams || 'p=1';
         },
 
         /**
@@ -1169,7 +1199,10 @@
 
             listing.removeClass(this.opts.isLoadingCls);
 
-            window.history.pushState('data', '', window.location.href.split('?')[0] + this.urlParams);
+            //prevent history item duplication
+            if(!this.isBrowserHistoryButton) {
+                window.history.pushState('data', '', window.location.href.split('?')[0] + this.urlParams);
+            }
 
             $.publish('plugin/swListingActions/updateListing', [this, html]);
 
